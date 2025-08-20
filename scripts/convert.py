@@ -65,11 +65,12 @@ def main() -> int:
     try:
         parser = argparse.ArgumentParser(description="Converter documentos para Markdown usando Docling")
         parser.add_argument("-i", "--input", required=True, help="Caminho absoluto do arquivo a ser convertido (ex.: /abs/path/file.pdf)")
-        parser.add_argument("-o", "--output-dir", default="/Users/gabrielramos/docling/output", help="Diretório de saída (padrão: /Users/gabrielramos/docling/output)")
+        parser.add_argument("-o", "--output-dir", default="", help="Diretório de saída. Ignorado: saída fixa em /Users/gabrielramos/docling/output")
         args = parser.parse_args()
 
         input_path = Path(args.input).expanduser().resolve()
-        output_dir = Path(args.output_dir).expanduser().resolve()
+        # Saída fixa conforme especificado
+        output_dir = Path("/Users/gabrielramos/docling/output").resolve()
 
         output_md, output_txt = ensure_paths(input_path, output_dir)
         logger.info("Convertendo PDF: %s", input_path)

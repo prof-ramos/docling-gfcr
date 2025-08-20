@@ -2,3 +2,5 @@
 # Preferir instalação via `uv pip install -r requirements.txt`
 docling
 pymupdf
+pytest
+pytest-cov
