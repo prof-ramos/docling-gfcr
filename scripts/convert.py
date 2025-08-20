@@ -55,11 +55,14 @@ def ensure_paths(input_path: Path, output_dir: Path) -> tuple[Path, Path]:
     """Garante diretório de saída e retorna caminhos de saída padrão.
 
     Retorna os caminhos de saída para Markdown e Texto (fallback), baseados no nome do arquivo de entrada.
+    Substitui espaços por underline nos nomes de arquivo de saída.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     validate_input_file(input_path)
-    output_md = output_dir / f"{input_path.stem}.md"
-    output_txt = output_dir / f"{input_path.stem}.txt"
+    # Substituir espaços por underline no nome do arquivo de saída
+    clean_stem = input_path.stem.replace(" ", "_")
+    output_md = output_dir / f"{clean_stem}.md"
+    output_txt = output_dir / f"{clean_stem}.txt"
     return output_md, output_txt
 
 

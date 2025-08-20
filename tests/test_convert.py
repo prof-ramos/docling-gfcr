@@ -65,6 +65,32 @@ def test_ensure_paths_different_extensions(tmp_path: Path):
         assert outdir.exists()
 
 
+def test_ensure_paths_spaces_in_filename(tmp_path: Path):
+    # Teste com espaços no nome do arquivo
+    test_file = tmp_path / "arquivo com espaços.pdf"
+    test_file.write_bytes(b"%PDF-1.4\n")
+    outdir = tmp_path / "output"
+    
+    md, txt = conv.ensure_paths(test_file, outdir)
+    # Espaços devem ser substituídos por underline
+    assert md.name == "arquivo_com_espaços.md"
+    assert txt.name == "arquivo_com_espaços.txt"
+    assert outdir.exists()
+
+
+def test_ensure_paths_multiple_spaces_and_special_chars(tmp_path: Path):
+    # Teste com múltiplos espaços e caracteres especiais
+    test_file = tmp_path / "Súmulas  TCU   atualizado.docx"
+    test_file.write_bytes(b"content")
+    outdir = tmp_path / "output"
+    
+    md, txt = conv.ensure_paths(test_file, outdir)
+    # Múltiplos espaços devem ser substituídos individualmente
+    assert md.name == "Súmulas__TCU___atualizado.md"
+    assert txt.name == "Súmulas__TCU___atualizado.txt"
+    assert outdir.exists()
+
+
 def test_convert_with_docling_success_pdf(tmp_path: Path, monkeypatch):
     inpdf = tmp_path / "a.pdf"
     inpdf.write_bytes(b"%PDF-1.4\n")
