@@ -1,0 +1,4 @@
+# Dependências do projeto Docling
+# Preferir instalação via `uv pip install -r requirements.txt`
+docling
+pymupdf

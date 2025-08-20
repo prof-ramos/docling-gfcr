@@ -1,0 +1,26 @@
+---
+alwaysApply: true
+description: Diretrizes de edição e fluxo de trabalho do projeto Docling
+---
+# Diretrizes de Edição
+
+- Indentação: Preserve o estilo existente (tabs vs spaces, largura).
+- Escopo de alterações: Faça edits pequenos e focados; evite refatorações não relacionadas.
+- Arquivos grandes: Leia apenas trechos relevantes; não reformatar o arquivo inteiro.
+- Erros de linter: Corrija erros introduzidos antes de concluir a tarefa.
+- Mensagens: Ao citar código em conversas, use blocos conforme as regras do Cursor.
+
+## Fluxo de Trabalho
+- Leia os arquivos que pretende editar antes de modificar.
+- Crie novos arquivos somente quando necessário e com nomes claros.
+- Após mudanças substanciais, rode build/testes se aplicável.
+- Use caminhos absolutos ao passar entradas/saídas de arquivos.
+
+## Docling Project Overview
+- Purpose: Converter arquivos para Markdown usando Docling.
+- Ambiente: macOS (MacBook Air M3, 8GB RAM).
+- README: [README.md](mdc:README.md)
+
+## Dicas de Performance (M3 8GB)
+- Processe arquivos em lotes pequenos.
+- Evite carregar arquivos muito grandes inteiramente em memória.

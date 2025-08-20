@@ -1,0 +1,28 @@
+---
+description: Ferramentas, setup e execução de scripts para Docling
+---
+# Ferramentas e Setup
+
+- macOS: Prefira caminhos absolutos.
+- Python: Use `uv` para ambientes e dependências.
+- Docling: Centralize a conversão em `scripts/convert.py`.
+
+## Execução Não Interativa
+- Use flags e comandos não interativos quando disponíveis.
+- Redirecione saídas longas para arquivos; evite pagers.
+
+## Scripts de Conversão
+- Valide entradas, trate erros e retorne códigos de saída apropriados.
+- Evite assumir estado global; descubra dependências em runtime.
+- Saídas Markdown em diretórios versionados, ex.: `output/`.
+
+## Comandos úteis (UV)
+```bash
+uv venv .venv
+uv pip install -r requirements.txt
+uv run python /Users/gabrielramos/docling/scripts/convert.py \
+  --input /Users/gabrielramos/docling/input \
+  --output /Users/gabrielramos/docling/output
+```
+
+Consulte também o [README.md](mdc:README.md).

@@ -1,0 +1,17 @@
+---
+globs: *.py
+description: Regras de estilo Python (nomenclatura, tipagem, fluxo, exceções e logs)
+---
+# Estilo Python
+
+- Tipagem: Anote assinaturas públicas com type hints; evite `Any` desnecessário.
+- Nomes: Use nomes descritivos completos; evite abreviações crípticas.
+- Controle de fluxo: Prefira guard clauses; trate erros e bordas cedo.
+- Exceções: Não capture exceções sem tratá-las; evite `bare except`.
+- Comentários: Explique o "porquê" de decisões complexas; evite comentários triviais.
+- Formatação: Siga o estilo existente; quebre linhas longas; evite ternários complexos.
+- Logs: Use `logging` com níveis adequados; evite `print` em código de biblioteca.
+
+## Testes e Qualidade
+- Escreva funções puras quando possível.
+- Minimize efeitos colaterais; injete dependências.

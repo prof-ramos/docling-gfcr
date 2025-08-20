@@ -1,0 +1,35 @@
+---
+alwaysApply: true
+description: Políticas de ambiente Python — use sempre UV e limpe venvs ao finalizar o projeto
+---
+# Política de Ambiente Python (UV)
+
+- Sempre utilize `uv` para criação e gerenciamento de ambientes e dependências Python.
+- Evite `python -m venv`, `virtualenv`, `pip install --user` e ativações manuais desnecessárias.
+- Prefira caminhos absolutos ao passar entradas/saídas de arquivos.
+- Use flags não interativas quando disponíveis.
+- Ao finalizar o projeto ou quando o repositório for encerrado/arquivado, remova os diretórios de venv locais.
+
+## Instalação do UV (macOS)
+- Com Homebrew: `brew install uv`
+- Ou conforme a documentação oficial do UV.
+
+## Criação e uso do ambiente
+- Criar ambiente: `uv venv .venv`
+- Rodar comandos sem ativar explicitamente: `uv run python --version`
+- Instalar dependências: `uv pip install -r requirements.txt`
+- Adicionar/atualizar dependências: `uv add <pacote>` (se aplicável ao fluxo do projeto)
+- Congelar dependências: `uv pip freeze > requirements.txt`
+
+## Execução de scripts (não interativa)
+- Execute scripts com `uv run` e use caminhos absolutos:
+  - Ex.: `uv run python /abs/path/scripts/convert.py --input /abs/path/in --output /abs/path/out`
+
+## Limpeza de ambientes ao encerrar
+- Após concluir o trabalho no projeto e/ou ao fechar o repositório:
+  - Remova ambientes locais: `rm -rf .venv venv env`
+  - Limpe caches temporários relacionados se necessário.
+
+## Observações de qualidade
+- Siga as regras de estilo Python do projeto e use logs com `logging` em vez de `print` para código de biblioteca.
+- Trate erros de forma explícita; evite capturas genéricas sem ação.

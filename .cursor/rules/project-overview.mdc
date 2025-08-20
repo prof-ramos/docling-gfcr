@@ -1,0 +1,25 @@
+---
+alwaysApply: true
+---
+### Docling Project Overview
+
+- **Purpose**: Converter arquivos para Markdown usando Docling.
+- **Ambiente**: macOS (MacBook Air M3, 8GB RAM).
+
+#### Estrutura e Entradas
+- **README**: [README.md](mdc:README.md)
+- **Arquivos de entrada**: Forneça caminhos absolutos quando possível.
+
+#### Fluxo de Trabalho Recomendido
+1. Instale dependências conforme necessário (ex.: Python e libs Docling, se aplicável).
+2. Execute scripts de conversão com flags não interativas.
+3. Salve saídas Markdown em diretórios versionados.
+
+#### Convenções
+- Use nomes claros para funções e variáveis.
+- Prefira logs concisos sobre prints dispersos.
+- Evite dependências globais implícitas.
+
+#### Dicas de Performance (M3 8GB)
+- Processe arquivos em lotes pequenos.
+- Evite carregar arquivos muito grandes inteiramente em memória.
