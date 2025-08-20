@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# CodeRabbit configuration
+
+version: 2
+review:
+  labels:
+    - docling
+    - automation
+  auto_review:
+    enabled: true
+    draft_only: false
+    patterns:
+      - "**/*.py"
+      - "README.md"
+      - "scripts/**"
+  summary:
+    enabled: true
+    include_changes: true
+rules:
+  - id: python-style
+    title: Estilo Python
+    applies_to:
+      - "**/*.py"
+    severity: warning
+    description: |
+      Siga type hints, logging em vez de print, e tratamento de exceções explícito.
+  - id: docling-usage
+    title: Uso do Docling
+    applies_to:
+      - "scripts/**"
+    severity: info
+    description: |
+      Preferir conversão via Docling com fallback para PyMuPDF. Usar caminhos absolutos.
