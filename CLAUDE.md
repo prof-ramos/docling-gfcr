@@ -58,6 +58,18 @@ echo '{"input_path": "/path/to/file.pdf", "return_content": true}' | uv run pyth
 uv run pytest tests/test_claude_tool.py
 ```
 
+#### Markdown Agent (Specialized)
+```bash
+# Use specialized Markdown agent with advanced features
+echo '{"input_path": "/path/to/file.pdf", "optimize": true, "validate": true}' | uv run python scripts/markdown_agent.py
+
+# Batch conversion with Markdown agent
+echo '{"input_path": ["/path/file1.pdf", "/path/file2.pdf"], "optimize": true}' | uv run python scripts/markdown_agent.py
+
+# Test Markdown agent
+uv run pytest tests/test_markdown_agent.py
+```
+
 ## Architecture Overview
 
 This is a document conversion tool that uses Docling as the primary converter with PyMuPDF as fallback:
@@ -78,20 +90,36 @@ This is a document conversion tool that uses Docling as the primary converter wi
   - Error handling: Comprehensive error reporting in JSON format
   - Flexible output: Supports both file saving and content return options
 
+- **`scripts/markdown_agent.py`**: Specialized Markdown conversion agent
+  - Advanced Features: Document analysis, Markdown optimization, quality validation
+  - Batch Processing: Support for multiple files in single operation
+  - Quality Metrics: Automated assessment of conversion quality with scoring
+  - Metadata Enhancement: Adds YAML frontmatter and optimizes structure
+
 ### Key Functions
 
+**Core Conversion:**
 - **`ensure_paths()`** - Validates input files and creates output directory structure
 - **`convert_with_docling()`** - Attempts conversion using Docling API with error handling
 - **`fallback_with_pymupdf()`** - Extracts raw text when Docling is unavailable
 - **`convert_document()`** - Reusable conversion function returning structured results
+
+**Tool Interfaces:**
 - **`convert_document_tool()`** - Claude Code tool wrapper with parameter validation
 - **`main()`** - CLI interface with argparse, processes conversion pipeline
+
+**Markdown Agent Specialized:**
+- **`MarkdownAgent.analyze_document()`** - Pre-conversion document analysis
+- **`MarkdownAgent.optimize_markdown()`** - Post-conversion optimization and formatting
+- **`MarkdownAgent.validate_markdown()`** - Quality assessment with detailed metrics
+- **`MarkdownAgent.batch_convert()`** - Multi-file processing with progress tracking
 
 ### Testing Strategy
 
 - **Unit tests**: Mock external dependencies (Docling, PyMuPDF) to test logic
 - **CLI tests**: Test argument parsing and main workflow with monkeypatching
 - **Tool tests**: Test Claude Code tool interface, JSON I/O, and schema validation
+- **Agent tests**: Test Markdown agent features (analysis, optimization, validation, batch processing)
 - **Coverage**: Focuses on `scripts/` module with term-missing reporting
 - **Path handling**: Tests use `tmp_path` fixtures, but CLI tests verify fixed output paths
 
@@ -100,18 +128,21 @@ This is a document conversion tool that uses Docling as the primary converter wi
 ```
 docling/
 ├── scripts/
-│   ├── convert.py          # Main conversion logic with CLI and programmatic interfaces
-│   ├── claude_tool.py      # Claude Code tool interface (JSON stdin/stdout)
-│   ├── tool_config.json    # Tool configuration and schema for Claude Code
-│   └── setup.sh           # Environment setup script
+│   ├── convert.py                    # Main conversion logic with CLI and programmatic interfaces
+│   ├── claude_tool.py                # Claude Code tool interface (JSON stdin/stdout)
+│   ├── markdown_agent.py             # Specialized Markdown conversion agent
+│   ├── tool_config.json              # Tool configuration and schema for Claude Code
+│   ├── markdown_agent_config.json    # Markdown agent configuration and examples
+│   └── setup.sh                     # Environment setup script
 ├── tests/
-│   ├── test_cli.py        # CLI argument and workflow tests  
-│   ├── test_convert.py    # Unit tests for conversion functions
-│   └── test_claude_tool.py # Tests for Claude Code tool interface
-├── output/                # Fixed output directory for converted files
-├── requirements.txt       # Python dependencies
-├── CLAUDE.md             # Claude Code integration guide
-└── README.md             # Project documentation
+│   ├── test_cli.py                  # CLI argument and workflow tests  
+│   ├── test_convert.py              # Unit tests for conversion functions
+│   ├── test_claude_tool.py          # Tests for Claude Code tool interface
+│   └── test_markdown_agent.py       # Tests for Markdown agent functionality
+├── output/                          # Fixed output directory for converted files
+├── requirements.txt                 # Python dependencies
+├── CLAUDE.md                       # Claude Code integration guide
+└── README.md                       # Project documentation
 ```
 
 ## Development Patterns

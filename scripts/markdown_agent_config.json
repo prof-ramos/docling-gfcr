@@ -1,0 +1,211 @@
+{
+  "agent_name": "MarkdownAgent",
+  "description": "Agente especializado em conversão de documentos para Markdown com funcionalidades avançadas de otimização, validação e análise de qualidade",
+  "version": "1.0.0",
+  "command": "uv run python /Users/gabrielramos/docling/scripts/markdown_agent.py",
+  "working_directory": "/Users/gabrielramos/docling",
+  "capabilities": [
+    "Análise prévia de documentos (tamanho, formato, páginas estimadas)",
+    "Conversão Docling com fallback PyMuPDF",
+    "Otimização automática de Markdown (metadados, formatação, estrutura)",
+    "Validação de qualidade com métricas detalhadas",
+    "Conversão em lote de múltiplos arquivos",
+    "Suporte a formatos: PDF, DOCX, DOC, TXT"
+  ],
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "input_path": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Caminho para arquivo único a ser convertido"
+          },
+          {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Lista de caminhos para conversão em lote"
+          }
+        ],
+        "description": "Caminho(s) do(s) arquivo(s) a ser(em) convertido(s) para Markdown"
+      },
+      "output_dir": {
+        "type": "string",
+        "description": "Diretório de saída para os arquivos convertidos",
+        "default": "/Users/gabrielramos/docling/output"
+      },
+      "optimize": {
+        "type": "boolean",
+        "description": "Aplicar otimizações de formatação e estrutura no Markdown",
+        "default": true
+      },
+      "validate": {
+        "type": "boolean", 
+        "description": "Executar validação de qualidade e gerar métricas",
+        "default": true
+      },
+      "return_content": {
+        "type": "boolean",
+        "description": "Incluir conteúdo convertido na resposta JSON",
+        "default": false
+      }
+    },
+    "required": ["input_path"]
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "success": {"type": "boolean"},
+      "agent": {"type": "string", "const": "markdown_agent"},
+      "input_analysis": {
+        "type": "object",
+        "properties": {
+          "filename": {"type": "string"},
+          "size_mb": {"type": "number"},
+          "extension": {"type": "string"},
+          "is_supported": {"type": "boolean"},
+          "estimated_pages": {"type": "number"}
+        }
+      },
+      "conversion_method": {"enum": ["docling", "pymupdf_fallback"]},
+      "output_file": {"type": "string"},
+      "optimized": {"type": "boolean"},
+      "validated": {"type": "boolean"},
+      "validation": {
+        "type": "object",
+        "properties": {
+          "valid": {"type": "boolean"},
+          "quality_score": {"type": "number", "minimum": 0, "maximum": 100},
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "headers_count": {"type": "number"},
+              "paragraphs_count": {"type": "number"},
+              "word_count": {"type": "number"},
+              "char_count": {"type": "number"}
+            }
+          },
+          "issues": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "name": "Conversão simples com otimização",
+      "description": "Converte um PDF para Markdown otimizado",
+      "input": {
+        "input_path": "/Users/user/document.pdf"
+      },
+      "expected_features": [
+        "Análise prévia do documento",
+        "Conversão via Docling",
+        "Otimização automática do Markdown",
+        "Validação de qualidade",
+        "Metadados adicionados ao arquivo"
+      ]
+    },
+    {
+      "name": "Conversão com configuração personalizada",
+      "description": "Conversão com diretório específico e retorno de conteúdo",
+      "input": {
+        "input_path": "/path/to/manual.pdf",
+        "output_dir": "/custom/output",
+        "optimize": true,
+        "validate": true,
+        "return_content": true
+      },
+      "expected_output": {
+        "success": true,
+        "agent": "markdown_agent",
+        "conversion_method": "docling",
+        "optimized": true,
+        "validated": true,
+        "validation": {
+          "valid": true,
+          "quality_score": 85
+        },
+        "content": "---\ntitle: manual\n...\n# Manual\nConteúdo..."
+      }
+    },
+    {
+      "name": "Conversão em lote",
+      "description": "Processa múltiplos arquivos simultaneamente",
+      "input": {
+        "input_path": [
+          "/docs/file1.pdf",
+          "/docs/file2.docx",
+          "/docs/file3.pdf"
+        ],
+        "optimize": false
+      },
+      "expected_output": {
+        "success": true,
+        "batch": true,
+        "summary": {
+          "total": 3,
+          "success": 3,
+          "failed": 0
+        },
+        "results": [
+          {"success": true, "agent": "markdown_agent"},
+          {"success": true, "agent": "markdown_agent"},
+          {"success": true, "agent": "markdown_agent"}
+        ]
+      }
+    }
+  ],
+  "quality_features": [
+    {
+      "name": "Análise Prévia",
+      "description": "Avalia tamanho, formato e complexidade antes da conversão"
+    },
+    {
+      "name": "Otimização de Markdown",
+      "description": "Adiciona metadados, limpa formatação, melhora estrutura"
+    },
+    {
+      "name": "Validação de Qualidade",
+      "description": "Gera métricas de qualidade e identifica problemas potenciais"
+    },
+    {
+      "name": "Fallback Inteligente",
+      "description": "Usa PyMuPDF automaticamente quando Docling não consegue processar"
+    },
+    {
+      "name": "Conversão em Lote",
+      "description": "Processa múltiplos arquivos com relatório consolidado"
+    }
+  ],
+  "supported_formats": [
+    {
+      "extension": ".pdf",
+      "description": "Documentos PDF - método preferencial"
+    },
+    {
+      "extension": ".docx",
+      "description": "Documentos Word modernos"
+    },
+    {
+      "extension": ".doc",
+      "description": "Documentos Word legados"
+    },
+    {
+      "extension": ".txt",
+      "description": "Arquivos de texto simples"
+    }
+  ],
+  "usage_scenarios": [
+    "Conversão de documentação técnica para wikis",
+    "Migração de documentos para sistemas baseados em Markdown",
+    "Processamento automatizado de relatórios PDF",
+    "Criação de conteúdo web a partir de documentos",
+    "Análise e validação de qualidade de conversões"
+  ],
+  "performance": {
+    "memory_usage": "Otimizado para arquivos grandes",
+    "batch_processing": "Suporte nativo a lotes",
+    "error_recovery": "Fallback automático em falhas",
+    "quality_assurance": "Validação integrada"
+  }
+}
