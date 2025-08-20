@@ -2,16 +2,24 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from pathlib import Path
 import argparse
 import json
+from typing import Dict, Optional
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(message)s",
-)
-logger = logging.getLogger("convert")
+# Configurar logging
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stderr)
+    formatter = logging.Formatter("%(asctime)s [%(name)s] %(levelname)s %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+# Configurações via environment variables
+DEFAULT_OUTPUT_DIR = os.getenv("DOCLING_OUTPUT_DIR", "/Users/gabrielramos/docling/output")
 
 
 def ensure_paths(input_path: Path, output_dir: Path) -> tuple[Path, Path]:
@@ -62,45 +70,61 @@ def fallback_with_pymupdf(input_path: Path) -> str:
     return "\n".join(parts)
 
 
-def convert_document(input_path: str, output_dir: str = "/Users/gabrielramos/docling/output") -> dict:
+def convert_document(
+    input_path: str, 
+    output_dir: Optional[str] = None,
+    return_content: bool = False
+) -> Dict[str, any]:
     """
     Função principal de conversão reutilizável.
     
     Args:
         input_path: Caminho para arquivo de entrada
-        output_dir: Diretório de saída
+        output_dir: Diretório de saída (usa padrão se None)
+        return_content: Se deve incluir conteúdo na resposta
         
     Returns:
         Dict com informações do resultado da conversão
     """
     try:
         input_path_obj = Path(input_path).expanduser().resolve()
-        output_dir_obj = Path(output_dir).expanduser().resolve()
+        output_dir_obj = Path(output_dir or DEFAULT_OUTPUT_DIR).expanduser().resolve()
         
         output_md, output_txt = ensure_paths(input_path_obj, output_dir_obj)
         logger.info("Convertendo PDF: %s", input_path_obj)
 
+        result = {
+            "success": True,
+            "method": None,
+            "output_file": None,
+            "file_size_bytes": 0
+        }
+        
         markdown = convert_with_docling(input_path_obj)
         if markdown is not None and markdown.strip():
             output_md.write_text(markdown, encoding="utf-8")
             logger.info("Markdown gerado: %s", output_md)
-            return {
-                "success": True,
+            result.update({
                 "method": "docling",
                 "output_file": str(output_md),
-                "content": markdown
-            }
-
-        logger.info("Usando fallback PyMuPDF para extrair texto...")
-        text_content = fallback_with_pymupdf(input_path_obj)
-        output_txt.write_text(text_content, encoding="utf-8")
-        logger.info("Texto extraído (fallback) salvo em: %s", output_txt)
-        return {
-            "success": True,
-            "method": "pymupdf",
-            "output_file": str(output_txt),
-            "content": text_content
-        }
+                "file_size_bytes": output_md.stat().st_size
+            })
+            if return_content:
+                result["content"] = markdown
+        else:
+            logger.info("Usando fallback PyMuPDF para extrair texto...")
+            text_content = fallback_with_pymupdf(input_path_obj)
+            output_txt.write_text(text_content, encoding="utf-8")
+            logger.info("Texto extraído (fallback) salvo em: %s", output_txt)
+            result.update({
+                "method": "pymupdf",
+                "output_file": str(output_txt),
+                "file_size_bytes": output_txt.stat().st_size
+            })
+            if return_content:
+                result["content"] = text_content
+                
+        return result
     except Exception as e:
         logger.error("Erro na conversão: %s", e, exc_info=True)
         return {

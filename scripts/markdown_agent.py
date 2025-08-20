@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional, TypedDict, Union
 import re
+from jsonschema import validate, ValidationError
 
 try:
     from .convert import convert_with_docling, fallback_with_pymupdf, ensure_paths
@@ -28,11 +30,95 @@ except ImportError:
 
 
 # Configurar logging específico do agente
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [MarkdownAgent] %(levelname)s %(message)s",
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stderr)
+    formatter = logging.Formatter(
+        "%(asctime)s [%(name)s] %(levelname)s %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+
+# Configurações via environment variables
+DEFAULT_OUTPUT_DIR = os.getenv(
+    "DOCLING_OUTPUT_DIR", 
+    "/Users/gabrielramos/docling/output"
 )
-logger = logging.getLogger("markdown_agent")
+
+
+class DocumentAnalysis(TypedDict):
+    """Resultado da análise de documento."""
+    filename: str
+    size_bytes: int
+    size_mb: float
+    extension: str
+    is_supported: bool
+    estimated_pages: int
+
+
+class ValidationMetrics(TypedDict):
+    """Métricas de validação de qualidade."""
+    headers_count: int
+    paragraphs_count: int
+    lists_count: int
+    word_count: int
+    char_count: int
+
+
+class ValidationResult(TypedDict):
+    """Resultado da validação de qualidade."""
+    valid: bool
+    issues: List[str]
+    metrics: ValidationMetrics
+    quality_score: int
+
+
+class ConversionResult(TypedDict):
+    """Resultado da conversão de documento."""
+    success: bool
+    agent: str
+    input_analysis: Optional[DocumentAnalysis]
+    conversion_method: Optional[str]
+    output_file: Optional[str]
+    file_size_bytes: Optional[int]
+    optimized: bool
+    validated: bool
+    validation: Optional[ValidationResult]
+    content: Optional[str]
+    error: Optional[str]
+
+
+class BatchResult(TypedDict):
+    """Resultado da conversão em lote."""
+    success: bool
+    batch: bool
+    results: List[ConversionResult]
+    summary: Dict[str, int]
+
+
+# Schema JSON para validação de entrada
+INPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "input_path": {
+            "oneOf": [
+                {"type": "string", "minLength": 1},
+                {
+                    "type": "array",
+                    "items": {"type": "string", "minLength": 1},
+                    "minItems": 1
+                }
+            ]
+        },
+        "output_dir": {"type": "string", "minLength": 1},
+        "optimize": {"type": "boolean"},
+        "validate": {"type": "boolean"},
+        "return_content": {"type": "boolean"}
+    },
+    "required": ["input_path"],
+    "additionalProperties": False
+}
 
 
 class MarkdownAgent:
@@ -40,11 +126,11 @@ class MarkdownAgent:
     Agente especializado em conversão para Markdown com funcionalidades avançadas.
     """
     
-    def __init__(self, output_dir: str = "/Users/gabrielramos/docling/output"):
-        self.output_dir = Path(output_dir)
+    def __init__(self, output_dir: Optional[str] = None):
+        self.output_dir = Path(output_dir or DEFAULT_OUTPUT_DIR)
         self.supported_formats = ['.pdf', '.docx', '.doc', '.txt']
         
-    def analyze_document(self, file_path: Path) -> Dict[str, Any]:
+    def analyze_document(self, file_path: Path) -> Union[DocumentAnalysis, Dict[str, str]]:
         """
         Analisa o documento antes da conversão.
         
@@ -52,19 +138,24 @@ class MarkdownAgent:
             file_path: Caminho para o arquivo
             
         Returns:
-            Dict com metadados e análise do documento
+            DocumentAnalysis com metadados ou dict com erro
         """
         try:
+            if not file_path.exists():
+                raise FileNotFoundError(f"Arquivo não encontrado: {file_path}")
+                
             stat = file_path.stat()
-            return {
-                "filename": file_path.name,
-                "size_bytes": stat.st_size,
-                "size_mb": round(stat.st_size / (1024 * 1024), 2),
-                "extension": file_path.suffix.lower(),
-                "is_supported": file_path.suffix.lower() in self.supported_formats,
-                "estimated_pages": max(1, stat.st_size // 2048) if file_path.suffix == '.pdf' else 1
-            }
-        except Exception as e:
+            extension = file_path.suffix.lower()
+            
+            return DocumentAnalysis(
+                filename=file_path.name,
+                size_bytes=stat.st_size,
+                size_mb=round(stat.st_size / (1024 * 1024), 2),
+                extension=extension,
+                is_supported=extension in self.supported_formats,
+                estimated_pages=max(1, stat.st_size // 2048) if extension == '.pdf' else 1
+            )
+        except (OSError, FileNotFoundError) as e:
             logger.warning(f"Erro ao analisar documento: {e}")
             return {"error": str(e)}
 
@@ -107,7 +198,7 @@ converted_by: Docling Markdown Agent
             
         return metadata + content
 
-    def validate_markdown(self, content: str) -> Dict[str, Any]:
+    def validate_markdown(self, content: str) -> ValidationResult:
         """
         Valida a qualidade do Markdown gerado.
         
@@ -115,26 +206,36 @@ converted_by: Docling Markdown Agent
             content: Conteúdo Markdown
             
         Returns:
-            Dict com métricas de qualidade
+            ValidationResult com métricas de qualidade
         """
         if not content:
-            return {"valid": False, "issues": ["Conteúdo vazio"]}
+            return ValidationResult(
+                valid=False,
+                issues=["Conteúdo vazio"],
+                metrics=ValidationMetrics(
+                    headers_count=0,
+                    paragraphs_count=0,
+                    lists_count=0,
+                    word_count=0,
+                    char_count=0
+                ),
+                quality_score=0
+            )
             
-        issues = []
-        metrics = {}
+        issues: List[str] = []
         
         # Contar elementos estruturais
         headers = re.findall(r'^#{1,6}\s+.+', content, re.MULTILINE)
         paragraphs = re.findall(r'^[^#\n-*+\s][^\n]*$', content, re.MULTILINE)
         lists = re.findall(r'^\s*[-*+]\s+', content, re.MULTILINE)
         
-        metrics.update({
-            "headers_count": len(headers),
-            "paragraphs_count": len(paragraphs),
-            "lists_count": len(lists),
-            "word_count": len(content.split()),
-            "char_count": len(content)
-        })
+        metrics = ValidationMetrics(
+            headers_count=len(headers),
+            paragraphs_count=len(paragraphs),
+            lists_count=len(lists),
+            word_count=len(content.split()),
+            char_count=len(content)
+        )
         
         # Validações básicas
         if not headers:
@@ -150,12 +251,12 @@ converted_by: Docling Markdown Agent
         if '# Página' in content:
             issues.append("Contém marcadores de página do fallback")
             
-        return {
-            "valid": len(issues) == 0,
-            "issues": issues,
-            "metrics": metrics,
-            "quality_score": max(0, 100 - len(issues) * 20)
-        }
+        return ValidationResult(
+            valid=len(issues) == 0,
+            issues=issues,
+            metrics=metrics,
+            quality_score=max(0, 100 - len(issues) * 20)
+        )
 
     def convert_document(
         self, 
@@ -164,7 +265,7 @@ converted_by: Docling Markdown Agent
         optimize: bool = True,
         validate: bool = True,
         return_content: bool = False
-    ) -> Dict[str, Any]:
+    ) -> ConversionResult:
         """
         Converte documento para Markdown com funcionalidades avançadas do agente.
         
@@ -181,21 +282,52 @@ converted_by: Docling Markdown Agent
         try:
             input_path_obj = Path(input_path).expanduser().resolve()
             if not input_path_obj.exists():
-                return {
-                    "success": False,
-                    "error": f"Arquivo não encontrado: {input_path}",
-                    "agent": "markdown_agent"
-                }
+                return ConversionResult(
+                    success=False,
+                    agent="markdown_agent",
+                    input_analysis=None,
+                    conversion_method=None,
+                    output_file=None,
+                    file_size_bytes=None,
+                    optimized=False,
+                    validated=False,
+                    validation=None,
+                    content=None,
+                    error=f"Arquivo não encontrado: {input_path}"
+                )
                 
             # Análise prévia do documento
-            doc_analysis = self.analyze_document(input_path_obj)
-            if not doc_analysis.get("is_supported", False):
-                return {
-                    "success": False,
-                    "error": f"Formato não suportado: {doc_analysis.get('extension', 'unknown')}",
-                    "supported_formats": self.supported_formats,
-                    "agent": "markdown_agent"
-                }
+            doc_analysis_result = self.analyze_document(input_path_obj)
+            if "error" in doc_analysis_result:
+                return ConversionResult(
+                    success=False,
+                    agent="markdown_agent",
+                    input_analysis=None,
+                    conversion_method=None,
+                    output_file=None,
+                    file_size_bytes=None,
+                    optimized=False,
+                    validated=False,
+                    validation=None,
+                    content=None,
+                    error=doc_analysis_result["error"]
+                )
+                
+            doc_analysis = doc_analysis_result  # type: ignore
+            if not doc_analysis["is_supported"]:
+                return ConversionResult(
+                    success=False,
+                    agent="markdown_agent",
+                    input_analysis=doc_analysis,
+                    conversion_method=None,
+                    output_file=None,
+                    file_size_bytes=None,
+                    optimized=False,
+                    validated=False,
+                    validation=None,
+                    content=None,
+                    error=f"Formato não suportado: {doc_analysis['extension']}"
+                )
 
             # Definir diretório de saída
             output_dir_obj = Path(output_dir or self.output_dir).expanduser().resolve()
@@ -300,18 +432,26 @@ def main():
     Lê configuração JSON do stdin e retorna resultado no stdout.
     """
     try:
-        # Ler configuração JSON
-        input_data = json.loads(sys.stdin.read())
+        # Ler e validar JSON de entrada
+        input_json = sys.stdin.read()
+        if not input_json.strip():
+            raise ValueError("Entrada JSON vazia")
+            
+        input_data = json.loads(input_json)
+        
+        # Validar schema
+        try:
+            validate(instance=input_data, schema=INPUT_SCHEMA)
+        except ValidationError as e:
+            raise ValueError(f"Schema JSON inválido: {e.message}")
         
         # Extrair parâmetros
-        input_path = input_data.get("input_path")
-        if not input_path:
-            raise ValueError("Parâmetro 'input_path' é obrigatório")
+        input_path = input_data["input_path"]
             
         # Parâmetros opcionais
         output_dir = input_data.get("output_dir")
         optimize = input_data.get("optimize", True)
-        validate = input_data.get("validate", True)
+        validate_quality = input_data.get("validate", True)
         return_content = input_data.get("return_content", False)
         
         # Verificar se é conversão em lote
@@ -321,7 +461,7 @@ def main():
                 input_path, 
                 output_dir=output_dir,
                 optimize=optimize,
-                validate=validate,
+                validate=validate_quality,
                 return_content=return_content
             )
             result = {
@@ -341,7 +481,7 @@ def main():
                 input_path, 
                 output_dir,
                 optimize,
-                validate,
+                validate_quality,
                 return_content
             )
             

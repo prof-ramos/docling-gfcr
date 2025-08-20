@@ -166,7 +166,6 @@ def test_convert_unsupported_format(markdown_agent, tmp_path):
     
     assert result["success"] is False
     assert "não suportado" in result["error"]
-    assert "supported_formats" in result
 
 
 def test_convert_file_not_found(markdown_agent):
@@ -196,7 +195,7 @@ def test_batch_convert(markdown_agent, tmp_path, monkeypatch):
     assert results[1]["agent"] == "markdown_agent"
 
 
-def test_main_single_conversion(tmp_path, monkeypatch):
+def test_main_single_conversion(tmp_path, monkeypatch, capsys):
     """Testa main() com conversão única."""
     pdf_file = tmp_path / "test.pdf"
     pdf_file.write_bytes(b"%PDF-1.4\n")
@@ -210,14 +209,9 @@ def test_main_single_conversion(tmp_path, monkeypatch):
         "return_content": True
     }
     
-    # Mock stdin e stdout
+    # Mock stdin
     mock_stdin = mock_open(read_data=json.dumps(input_data))
     monkeypatch.setattr("sys.stdin", mock_stdin.return_value)
-    
-    captured_output = []
-    def mock_print(*args, **kwargs):
-        captured_output.append(args[0] if args else "")
-    monkeypatch.setattr("builtins.print", mock_print)
     
     # Mock conversão
     monkeypatch.setattr("scripts.markdown_agent.convert_with_docling", lambda p: "# Teste")
@@ -225,16 +219,16 @@ def test_main_single_conversion(tmp_path, monkeypatch):
     # Executar main
     agent.main()
     
-    # Verificar saída
-    output = captured_output[0]
-    result = json.loads(output)
+    # Verificar saída (stdout)
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
     
     assert result["success"] is True
     assert result["agent"] == "markdown_agent"
     assert "batch" not in result
 
 
-def test_main_batch_conversion(tmp_path, monkeypatch):
+def test_main_batch_conversion(tmp_path, monkeypatch, capsys):
     """Testa main() com conversão em lote."""
     pdf1 = tmp_path / "doc1.pdf"
     pdf2 = tmp_path / "doc2.pdf" 
@@ -251,20 +245,15 @@ def test_main_batch_conversion(tmp_path, monkeypatch):
     mock_stdin = mock_open(read_data=json.dumps(input_data))
     monkeypatch.setattr("sys.stdin", mock_stdin.return_value)
     
-    captured_output = []
-    def mock_print(*args, **kwargs):
-        captured_output.append(args[0] if args else "")
-    monkeypatch.setattr("builtins.print", mock_print)
-    
     # Mock conversão
     monkeypatch.setattr("scripts.markdown_agent.convert_with_docling", lambda p: f"# {p.stem}")
     
     # Executar main
     agent.main()
     
-    # Verificar saída
-    output = captured_output[0]
-    result = json.loads(output)
+    # Verificar saída (stdout)
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
     
     assert result["success"] is True
     assert result["batch"] is True
@@ -272,17 +261,39 @@ def test_main_batch_conversion(tmp_path, monkeypatch):
     assert result["summary"]["total"] == 2
 
 
-def test_main_missing_input_path(monkeypatch):
+def test_main_missing_input_path(monkeypatch, capsys):
     """Testa main() sem input_path."""
     input_data = {"optimize": True}
     
     mock_stdin = mock_open(read_data=json.dumps(input_data))
     monkeypatch.setattr("sys.stdin", mock_stdin.return_value)
     
-    captured_output = []
-    def mock_print(*args, **kwargs):
-        captured_output.append(args[0] if args else "")
-    monkeypatch.setattr("builtins.print", mock_print)
+    exit_codes = []
+    def mock_exit(code):
+        exit_codes.append(code)
+    monkeypatch.setattr("sys.exit", mock_exit)
+    
+    # Executar main
+    agent.main()
+    
+    # Verificar erro (stdout)
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
+    
+    assert result["success"] is False
+    assert "Schema JSON inválido" in result["error"]
+    assert exit_codes[0] == 1
+
+
+def test_main_invalid_json_schema(monkeypatch, capsys):
+    """Testa main() com schema JSON inválido."""
+    input_data = {
+        "input_path": "",  # string vazia não é válida
+        "invalid_field": "test"  # campo adicional não permitido
+    }
+    
+    mock_stdin = mock_open(read_data=json.dumps(input_data))
+    monkeypatch.setattr("sys.stdin", mock_stdin.return_value)
     
     exit_codes = []
     def mock_exit(code):
@@ -293,9 +304,9 @@ def test_main_missing_input_path(monkeypatch):
     agent.main()
     
     # Verificar erro
-    output = captured_output[0]
-    result = json.loads(output)
+    captured = capsys.readouterr()
+    result = json.loads(captured.out)
     
     assert result["success"] is False
-    assert "obrigatório" in result["error"]
+    assert "Schema JSON inválido" in result["error"]
     assert exit_codes[0] == 1
