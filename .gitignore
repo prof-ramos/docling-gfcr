@@ -21,3 +21,5 @@ __pycache__/
 
 # Test artifacts
 output/doc.*
+.claude/
+.mcp.json

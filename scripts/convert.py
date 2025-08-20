@@ -5,6 +5,7 @@ import logging
 import sys
 from pathlib import Path
 import argparse
+import json
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,33 +62,76 @@ def fallback_with_pymupdf(input_path: Path) -> str:
     return "\n".join(parts)
 
 
+def convert_document(input_path: str, output_dir: str = "/Users/gabrielramos/docling/output") -> dict:
+    """
+    Função principal de conversão reutilizável.
+    
+    Args:
+        input_path: Caminho para arquivo de entrada
+        output_dir: Diretório de saída
+        
+    Returns:
+        Dict com informações do resultado da conversão
+    """
+    try:
+        input_path_obj = Path(input_path).expanduser().resolve()
+        output_dir_obj = Path(output_dir).expanduser().resolve()
+        
+        output_md, output_txt = ensure_paths(input_path_obj, output_dir_obj)
+        logger.info("Convertendo PDF: %s", input_path_obj)
+
+        markdown = convert_with_docling(input_path_obj)
+        if markdown is not None and markdown.strip():
+            output_md.write_text(markdown, encoding="utf-8")
+            logger.info("Markdown gerado: %s", output_md)
+            return {
+                "success": True,
+                "method": "docling",
+                "output_file": str(output_md),
+                "content": markdown
+            }
+
+        logger.info("Usando fallback PyMuPDF para extrair texto...")
+        text_content = fallback_with_pymupdf(input_path_obj)
+        output_txt.write_text(text_content, encoding="utf-8")
+        logger.info("Texto extraído (fallback) salvo em: %s", output_txt)
+        return {
+            "success": True,
+            "method": "pymupdf",
+            "output_file": str(output_txt),
+            "content": text_content
+        }
+    except Exception as e:
+        logger.error("Erro na conversão: %s", e, exc_info=True)
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 def main() -> int:
     try:
         parser = argparse.ArgumentParser(description="Converter documentos para Markdown usando Docling")
         parser.add_argument("-i", "--input", required=True, help="Caminho absoluto do arquivo a ser convertido (ex.: /abs/path/file.pdf)")
         parser.add_argument("-o", "--output-dir", default="", help="Diretório de saída. Ignorado: saída fixa em /Users/gabrielramos/docling/output")
+        parser.add_argument("--json", action="store_true", help="Retorna resultado em formato JSON")
         args = parser.parse_args()
 
-        input_path = Path(args.input).expanduser().resolve()
+        input_path = args.input
         # Saída fixa conforme especificado
-        output_dir = Path("/Users/gabrielramos/docling/output").resolve()
+        output_dir = "/Users/gabrielramos/docling/output"
 
-        output_md, output_txt = ensure_paths(input_path, output_dir)
-        logger.info("Convertendo PDF: %s", input_path)
-
-        markdown = convert_with_docling(input_path)
-        if markdown is not None and markdown.strip():
-            output_md.write_text(markdown, encoding="utf-8")
-            logger.info("Markdown gerado: %s", output_md)
-            return 0
-
-        logger.info("Usando fallback PyMuPDF para extrair texto...")
-        text_content = fallback_with_pymupdf(input_path)
-        output_txt.write_text(text_content, encoding="utf-8")
-        logger.info("Texto extraído (fallback) salvo em: %s", output_txt)
-        return 0
+        result = convert_document(input_path, output_dir)
+        
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        
+        return 0 if result["success"] else 1
     except Exception as e:
+        error_result = {"success": False, "error": str(e)}
         logger.error("Erro na conversão: %s", e, exc_info=True)
+        if "--json" in sys.argv:
+            print(json.dumps(error_result, ensure_ascii=False, indent=2))
         return 1
 
 

@@ -1,0 +1,67 @@
+{
+  "tool_name": "convert_document",
+  "description": "Converte documentos PDF para Markdown usando Docling com fallback para PyMuPDF",
+  "command": "uv run python /Users/gabrielramos/docling/scripts/claude_tool.py",
+  "working_directory": "/Users/gabrielramos/docling",
+  "schema": {
+    "name": "convert_document",
+    "description": "Converte documentos PDF para Markdown usando Docling com fallback para PyMuPDF. Suporta conversão de alta qualidade via Docling ou extração de texto via PyMuPDF como fallback.",
+    "input_schema": {
+      "type": "object",
+      "properties": {
+        "input_path": {
+          "type": "string",
+          "description": "Caminho absoluto para o arquivo PDF a ser convertido. Deve ser um caminho válido no sistema de arquivos."
+        },
+        "output_dir": {
+          "type": "string", 
+          "description": "Diretório de saída onde salvar o arquivo convertido. Se não especificado, usa o diretório padrão /Users/gabrielramos/docling/output",
+          "default": "/Users/gabrielramos/docling/output"
+        },
+        "return_content": {
+          "type": "boolean",
+          "description": "Se true, inclui o conteúdo convertido na resposta JSON além de salvar no arquivo. Se false, apenas salva no arquivo. Padrão: false",
+          "default": false
+        }
+      },
+      "required": ["input_path"]
+    }
+  },
+  "examples": [
+    {
+      "description": "Converter PDF com configurações padrão",
+      "input": {
+        "input_path": "/Users/gabrielramos/Documents/documento.pdf"
+      },
+      "expected_output": {
+        "success": true,
+        "conversion_method": "docling",
+        "output_file": "/Users/gabrielramos/docling/output/documento.md",
+        "file_size_bytes": 1234
+      }
+    },
+    {
+      "description": "Converter PDF com diretório personalizado e retorno de conteúdo",
+      "input": {
+        "input_path": "/Users/gabrielramos/Downloads/manual.pdf",
+        "output_dir": "/Users/gabrielramos/converted_docs",
+        "return_content": true
+      },
+      "expected_output": {
+        "success": true,
+        "conversion_method": "docling",
+        "output_file": "/Users/gabrielramos/converted_docs/manual.md",
+        "file_size_bytes": 5678,
+        "content": "# Manual\n\nConteúdo convertido..."
+      }
+    }
+  ],
+  "usage_notes": [
+    "O tool tentará usar Docling primeiro para conversão de alta qualidade",
+    "Se Docling falhar ou não estiver disponível, usará PyMuPDF como fallback",
+    "Arquivos .md são criados para conversões Docling, .txt para fallback PyMuPDF",
+    "O diretório de saída é criado automaticamente se não existir",
+    "Use caminhos absolutos para melhor compatibilidade",
+    "O tool funciona melhor com PDFs bem estruturados"
+  ]
+}
