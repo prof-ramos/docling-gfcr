@@ -4,3 +4,4 @@ docling
 pymupdf
 pytest
 pytest-cov
+jsonschema
