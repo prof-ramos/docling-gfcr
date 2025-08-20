@@ -4,11 +4,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-
-INPUT_PATH = Path("/Users/gabrielramos/docling/manual-de-redacao.pdf")
-OUTPUT_DIR = Path("/Users/gabrielramos/docling/output")
-OUTPUT_MD = OUTPUT_DIR / "manual-de-redacao.md"
-OUTPUT_TXT = OUTPUT_DIR / "manual-de-redacao.txt"
+import argparse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,13 +13,20 @@ logging.basicConfig(
 logger = logging.getLogger("convert")
 
 
-def ensure_paths() -> None:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    if not INPUT_PATH.exists():
-        raise FileNotFoundError(f"Arquivo de entrada não encontrado: {INPUT_PATH}")
+def ensure_paths(input_path: Path, output_dir: Path) -> tuple[Path, Path]:
+    """Garante diretório de saída e retorna caminhos de saída padrão.
+
+    Retorna os caminhos de saída para Markdown e Texto (fallback), baseados no nome do arquivo de entrada.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if not input_path.exists():
+        raise FileNotFoundError(f"Arquivo de entrada não encontrado: {input_path}")
+    output_md = output_dir / f"{input_path.stem}.md"
+    output_txt = output_dir / f"{input_path.stem}.txt"
+    return output_md, output_txt
 
 
-def convert_with_docling() -> str | None:
+def convert_with_docling(input_path: Path) -> str | None:
     try:
         from docling.document_converter import DocumentConverter  # type: ignore
     except Exception as e:
@@ -32,7 +35,7 @@ def convert_with_docling() -> str | None:
 
     try:
         converter = DocumentConverter()
-        result = converter.convert(str(INPUT_PATH))
+        result = converter.convert(str(input_path))
         # Algumas versões expõem .document.export_to_markdown();
         # outras podem usar métodos utilitários diferentes.
         if hasattr(result, "document") and hasattr(result.document, "export_to_markdown"):
@@ -45,10 +48,10 @@ def convert_with_docling() -> str | None:
         return None
 
 
-def fallback_with_pymupdf() -> str:
+def fallback_with_pymupdf(input_path: Path) -> str:
     import fitz  # PyMuPDF
 
-    doc = fitz.open(str(INPUT_PATH))
+    doc = fitz.open(str(input_path))
     parts: list[str] = []
     for page_index in range(len(doc)):
         page = doc.load_page(page_index)
@@ -60,19 +63,27 @@ def fallback_with_pymupdf() -> str:
 
 def main() -> int:
     try:
-        ensure_paths()
-        logger.info("Convertendo PDF: %s", INPUT_PATH)
+        parser = argparse.ArgumentParser(description="Converter documentos para Markdown usando Docling")
+        parser.add_argument("-i", "--input", required=True, help="Caminho absoluto do arquivo a ser convertido (ex.: /abs/path/file.pdf)")
+        parser.add_argument("-o", "--output-dir", default="/Users/gabrielramos/docling/output", help="Diretório de saída (padrão: /Users/gabrielramos/docling/output)")
+        args = parser.parse_args()
 
-        markdown = convert_with_docling()
+        input_path = Path(args.input).expanduser().resolve()
+        output_dir = Path(args.output_dir).expanduser().resolve()
+
+        output_md, output_txt = ensure_paths(input_path, output_dir)
+        logger.info("Convertendo PDF: %s", input_path)
+
+        markdown = convert_with_docling(input_path)
         if markdown is not None and markdown.strip():
-            OUTPUT_MD.write_text(markdown, encoding="utf-8")
-            logger.info("Markdown gerado: %s", OUTPUT_MD)
+            output_md.write_text(markdown, encoding="utf-8")
+            logger.info("Markdown gerado: %s", output_md)
             return 0
 
         logger.info("Usando fallback PyMuPDF para extrair texto...")
-        text_content = fallback_with_pymupdf()
-        OUTPUT_TXT.write_text(text_content, encoding="utf-8")
-        logger.info("Texto extraído (fallback) salvo em: %s", OUTPUT_TXT)
+        text_content = fallback_with_pymupdf(input_path)
+        output_txt.write_text(text_content, encoding="utf-8")
+        logger.info("Texto extraído (fallback) salvo em: %s", output_txt)
         return 0
     except Exception as e:
         logger.error("Erro na conversão: %s", e, exc_info=True)
