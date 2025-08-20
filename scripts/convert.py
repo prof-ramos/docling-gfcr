@@ -9,8 +9,15 @@ import argparse
 import json
 from typing import Dict, Optional, List
 
-# Configurar logging
+# Configurar logging primeiro
 logger = logging.getLogger(__name__)
+
+try:
+    from .openai_enhancer import OpenAIEnhancer, create_enhancer_from_env
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    logger.warning("OpenAI não disponível. Funcionalidades de enriquecimento desabilitadas.")
 if not logger.handlers:
     handler = logging.StreamHandler(sys.stderr)
     formatter = logging.Formatter("%(asctime)s [%(name)s] %(levelname)s %(message)s")
@@ -148,7 +155,8 @@ def get_generic_fallback(input_path: Path) -> str:
 def convert_document(
     input_path: str, 
     output_dir: Optional[str] = None,
-    return_content: bool = False
+    return_content: bool = False,
+    enhance_with_openai: bool = False
 ) -> Dict[str, any]:
     """
     Função principal de conversão reutilizável.
@@ -157,6 +165,7 @@ def convert_document(
         input_path: Caminho para arquivo de entrada
         output_dir: Diretório de saída (usa padrão se None)
         return_content: Se deve incluir conteúdo na resposta
+        enhance_with_openai: Se deve usar OpenAI para melhorar o resultado
         
     Returns:
         Dict com informações do resultado da conversão
@@ -178,10 +187,32 @@ def convert_document(
         
         markdown = convert_with_docling(input_path_obj)
         if markdown is not None and markdown.strip():
+            # Aplicar enriquecimento OpenAI se solicitado
+            if enhance_with_openai and OPENAI_AVAILABLE:
+                logger.info("Aplicando enriquecimento OpenAI ao Markdown...")
+                try:
+                    enhancer = create_enhancer_from_env()
+                    enhancement_result = enhancer.enhance_markdown(markdown)
+                    
+                    if "enhanced_markdown" in enhancement_result:
+                        markdown = enhancement_result["enhanced_markdown"]
+                        result["openai_enhancement"] = {
+                            "applied": True,
+                            "metadata": enhancement_result.get("metadata", {}),
+                            "improvements": enhancement_result.get("improvements", [])
+                        }
+                        logger.info("Enriquecimento OpenAI aplicado com sucesso")
+                    else:
+                        result["openai_enhancement"] = {"applied": False, "error": "Resposta inválida"}
+                        
+                except Exception as e:
+                    logger.warning(f"Erro no enriquecimento OpenAI: {e}")
+                    result["openai_enhancement"] = {"applied": False, "error": str(e)}
+                    
             output_md.write_text(markdown, encoding="utf-8")
             logger.info("Markdown gerado: %s", output_md)
             result.update({
-                "method": "docling",
+                "method": "docling" + ("+openai" if enhance_with_openai and OPENAI_AVAILABLE else ""),
                 "output_file": str(output_md),
                 "file_size_bytes": output_md.stat().st_size
             })
@@ -225,13 +256,14 @@ def main() -> int:
                           help=f"Caminho absoluto do arquivo a ser convertido. Extensões suportadas: {supported_exts}")
         parser.add_argument("-o", "--output-dir", default="", help="Diretório de saída. Ignorado: saída fixa em /Users/gabrielramos/docling/output")
         parser.add_argument("--json", action="store_true", help="Retorna resultado em formato JSON")
+        parser.add_argument("--enhance", action="store_true", help="Usar OpenAI para melhorar o resultado (requer OPENAI_API_KEY)")
         args = parser.parse_args()
 
         input_path = args.input
         # Saída fixa conforme especificado
         output_dir = "/Users/gabrielramos/docling/output"
 
-        result = convert_document(input_path, output_dir)
+        result = convert_document(input_path, output_dir, enhance_with_openai=args.enhance)
         
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))

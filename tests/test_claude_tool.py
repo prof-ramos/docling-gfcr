@@ -13,6 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import scripts.claude_tool as tool
+import scripts.convert as conv
 
 
 def test_tool_schema_structure():
@@ -41,9 +42,9 @@ def test_convert_document_tool_success(tmp_path, monkeypatch):
     
     output_dir = tmp_path / "output"
     
-    # Mock da função convert_with_docling
-    monkeypatch.setattr(tool, "convert_with_docling", lambda p: "# Markdown content")
-    monkeypatch.setattr(tool, "fallback_with_pymupdf", lambda p: "Text content")
+    # Mock das funções de conversão no módulo correto
+    monkeypatch.setattr(conv, "convert_with_docling", lambda p: "# Markdown content")
+    monkeypatch.setattr(conv, "fallback_with_pymupdf", lambda p: "Text content")
     
     result = tool.convert_document_tool(
         input_path=str(input_pdf),
@@ -66,8 +67,8 @@ def test_convert_document_tool_fallback(tmp_path, monkeypatch):
     output_dir = tmp_path / "output"
     
     # Mock: Docling retorna None, força fallback
-    monkeypatch.setattr(tool, "convert_with_docling", lambda p: None)
-    monkeypatch.setattr(tool, "fallback_with_pymupdf", lambda p: "Extracted text")
+    monkeypatch.setattr(conv, "convert_with_docling", lambda p: None)
+    monkeypatch.setattr(conv, "fallback_with_pymupdf", lambda p: "Extracted text")
     
     result = tool.convert_document_tool(
         input_path=str(input_pdf),
@@ -76,7 +77,7 @@ def test_convert_document_tool_fallback(tmp_path, monkeypatch):
     )
     
     assert result["success"] is True
-    assert result["conversion_method"] == "pymupdf_fallback"
+    assert result["conversion_method"] == "pymupdf"
     assert result["output_file"].endswith("test.txt")
     assert result["content"] == "Extracted text"
 
@@ -99,7 +100,7 @@ def test_convert_document_tool_without_content_return(tmp_path, monkeypatch):
     
     output_dir = tmp_path / "output"
     
-    monkeypatch.setattr(tool, "convert_with_docling", lambda p: "# Markdown")
+    monkeypatch.setattr(conv, "convert_with_docling", lambda p: "# Markdown")
     
     result = tool.convert_document_tool(
         input_path=str(input_pdf),
@@ -128,7 +129,7 @@ def test_main_with_valid_json_input(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.stdin", mock_stdin.return_value)
     
     # Mock funções de conversão
-    monkeypatch.setattr(tool, "convert_with_docling", lambda p: "# Test")
+    monkeypatch.setattr(conv, "convert_with_docling", lambda p: "# Test")
     
     # Capturar stdout
     captured_output = []

@@ -14,3 +14,7 @@ pytest-cov
 
 # Utilitários
 jsonschema
+
+# Integração OpenAI para melhorar conversões
+openai>=1.0.0
+python-dotenv
