@@ -12,19 +12,19 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
-from .convert import convert_with_docling, fallback_with_pymupdf, ensure_paths
+from .convert import convert_with_docling, fallback_with_pymupdf, get_generic_fallback, ensure_paths, SUPPORTED_EXTENSIONS, FALLBACK_EXTENSIONS
 
 
 # JSON Schema para o tool do Claude Code
 TOOL_SCHEMA = {
     "name": "convert_document",
-    "description": "Converte documentos PDF para Markdown usando Docling com fallback para PyMuPDF",
+    "description": "Converte documentos (PDF, DOCX, XLSX, PPTX, HTML, imagens, etc.) para Markdown usando Docling",
     "input_schema": {
         "type": "object",
         "properties": {
             "input_path": {
                 "type": "string",
-                "description": "Caminho absoluto para o arquivo PDF a ser convertido"
+                "description": "Caminho absoluto para o arquivo a ser convertido. Extensões suportadas: " + ", ".join(sorted(SUPPORTED_EXTENSIONS))
             },
             "output_dir": {
                 "type": "string", 
@@ -99,11 +99,18 @@ def convert_document_tool(
                 result["content"] = markdown_content
                 
         else:
-            # Fallback para PyMuPDF
-            text_content = fallback_with_pymupdf(input_path_obj)
+            # Usar fallback apropriado baseado na extensão
+            extension = input_path_obj.suffix.lower()
+            if extension in FALLBACK_EXTENSIONS:
+                text_content = fallback_with_pymupdf(input_path_obj)
+                fallback_method = "pymupdf_fallback"
+            else:
+                text_content = get_generic_fallback(input_path_obj)
+                fallback_method = "generic_fallback"
+                
             output_txt.write_text(text_content, encoding="utf-8")
             result.update({
-                "conversion_method": "pymupdf_fallback", 
+                "conversion_method": fallback_method,
                 "output_file": str(output_txt),
                 "file_size_bytes": output_txt.stat().st_size
             })
