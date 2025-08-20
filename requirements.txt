@@ -1,7 +1,16 @@
 # Dependências do projeto Docling
 # Preferir instalação via `uv pip install -r requirements.txt`
+
+# Conversão de documentos
 docling
 pymupdf
+
+# Interface web
+streamlit
+
+# Testes
 pytest
 pytest-cov
+
+# Utilitários
 jsonschema
